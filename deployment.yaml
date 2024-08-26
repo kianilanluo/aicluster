@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: real-estate-prediction
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: real-estate-prediction
+  template:
+    metadata:
+      labels:
+        app: real-estate-prediction
+    spec:
+      containers:
+      - name: real-estate-prediction
+        image: real-estate-prediction:v1
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 5002
+        resources:
+          limits:
+            cpu: 500m
+            memory: 512Mi
+          requests:
+            cpu: 250m
+            memory: 256Mi
