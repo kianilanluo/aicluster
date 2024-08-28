@@ -17,41 +17,10 @@ pull:
 - prefect.deployments.steps.git_clone:
     repository: https://github.com/kianilanluo/kian_dissertation.git
     branch: main
-    access_token: '{{ prefect.blocks.secret.deployment-real-estate-pipeline-py-real-estate-price-prediction-pipeline-repo-token
-      }}'
+    access_token: '{{ prefect.blocks.secret.deployment-real-estate-pipeline-py-real-estate-price-prediction-pipeline-repo-token }}'
 
 # the deployments section allows you to provide configuration for deploying flows
 deployments:
-- name: real_estate_pipeline.py
-  version:
-  tags: []
-  description:
-  entrypoint: real_estate_pipeline.py:ml_pipeline
-  parameters: {}
-  work_pool:
-    name: kianpool
-    work_queue_name:
-    job_variables: {}
-  schedules:
-  - interval: 3600.0
-    anchor_date: '2024-08-28T10:59:44.736375+00:00'
-    timezone: UTC
-    active: true
-- name: ml_pipeline-deployment.yaml
-  version:
-  tags: []
-  description:
-  entrypoint: real_estate_pipeline.py:ml_pipeline
-  parameters: {}
-  work_pool:
-    name: kianpool
-    work_queue_name:
-    job_variables: {}
-  schedules:
-  - interval: 3600.0
-    anchor_date: '2024-08-28T15:53:07.487939+00:00'
-    timezone: UTC
-    active: true
 - name: training_phase
   version:
   tags: []
