@@ -3,9 +3,10 @@ kind: Service
 metadata:
   name: real-estate-prediction
 spec:
-  type: LoadBalancer
+  type: NodePort
   ports:
     - port: 80
       targetPort: 5002
+      nodePort: 30007  # You can choose any port in the range 30000-32767
   selector:
     app: real-estate-prediction

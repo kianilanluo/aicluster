@@ -1,0 +1,33 @@
+###
+### A complete description of a Prefect Deployment for flow 'Real Estate Price Prediction Pipeline'
+###
+name: Weekly Schedule Deployment
+description: "Deployment for the ML pipeline to run every week"
+version: d8a55c961642e36fa5e9a3ef09c8e2dd
+work_queue_name: default
+work_pool_name: kianpool
+tags: []
+parameters: {}
+schedules:
+  - cron:
+      cron: "0 0 * * 0"  # Runs every Sunday at midnight
+      timezone: "UTC"
+    active: true
+infra_overrides: {}
+infrastructure:
+  type: process
+  env: {}
+  labels: {}
+  stream_output: true
+  block_type_slug: process
+
+flow_name: Real Estate Price Prediction Pipeline
+entrypoint: real_estate_pipeline.py:ml_pipeline
+path: /Users/kian/Desktop/Education/Dessertation/kian_dissertation
+parameter_openapi_schema:
+  title: Parameters
+  type: object
+  properties: {}
+timestamp: '2024-08-28T10:29:21.539031+00:00'
+triggers: []
+enforce_parameter_schema: null

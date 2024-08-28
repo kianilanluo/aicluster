@@ -94,3 +94,162 @@ Contributions are welcome! If you find any issues or have suggestions for improv
 ## License
 
 This project is not licensed.
+
+## Kubernetes Deployment Configuration
+
+### 1. Ingress Controller Setup
+
+To expose your `real-estate-prediction` service with SSL/TLS using an NGINX Ingress controller, follow these steps:
+
+#### Step 1: Install NGINX Ingress Controller
+
+1. **Install via Helm (Recommended):**
+
+   ```bash
+   helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+   helm repo update
+   helm install ingress-nginx ingress-nginx/ingress-nginx
+   ```
+
+2. **Install using Kubernetes manifests:**
+
+   ```bash
+   kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/cloud/deploy.yaml
+   ```
+
+#### Step 2: Create Ingress Resource
+
+1. Add the `ingress.yaml` file to your project:
+
+   ```yaml
+   # ingress.yaml
+   apiVersion: networking.k8s.io/v1
+   kind: Ingress
+   metadata:
+     name: real-estate-ingress
+     annotations:
+       nginx.ingress.kubernetes.io/rewrite-target: /
+       nginx.ingress.kubernetes.io/ssl-redirect: "true"
+   spec:
+     rules:
+     - host: realestate.local
+       http:
+         paths:
+         - path: /
+           pathType: Prefix
+           backend:
+             service:
+               name: real-estate-prediction
+               port:
+                 number: 80
+     tls:
+     - hosts:
+       - realestate.local
+       secretName: realestate-tls
+   ```
+
+2. Apply the `ingress.yaml`:
+
+   ```bash
+   kubectl apply -f ingress.yaml
+   ```
+
+#### Step 3: Set Up SSL/TLS
+
+- **For local development (self-signed certificate):**
+
+   Generate a self-signed certificate and create the Kubernetes secret:
+
+   ```bash
+   openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout tls.key -out tls.crt -subj "/CN=realestate.local/O=local"
+   kubectl create secret tls realestate-tls --key tls.key --cert tls.crt
+   ```
+
+- **For production (Let's Encrypt):**
+
+   1. Install cert-manager:
+
+      ```bash
+      kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.7.1/cert-manager.yaml
+      ```
+
+   2. Add the `cluster-issuer.yaml` to your project and apply it:
+
+      ```bash
+      kubectl apply -f cluster-issuer.yaml
+      ```
+
+   3. Update `ingress.yaml` to use Let's Encrypt (as shown above).
+
+#### Step 4: Apply Network Policy
+
+1. Add the `network-policy.yaml` to your project:
+
+   ```yaml
+   # network-policy.yaml
+   apiVersion: networking.k8s.io/v1
+   kind: NetworkPolicy
+   metadata:
+     name: allow-only-nginx
+     namespace: default
+   spec:
+     podSelector:
+       matchLabels:
+         app: real-estate-prediction
+     ingress:
+     - from:
+       - podSelector:
+           matchLabels:
+             app.kubernetes.io/name: ingress-nginx
+       ports:
+       - protocol: TCP
+         port: 80
+   ```
+
+2. Apply the network policy:
+
+   ```bash
+   kubectl apply -f network-policy.yaml
+   ```
+
+### 2. Using Local Docker Images
+
+If you are running a local Kubernetes cluster (e.g., using Docker Desktop, Minikube), and your Docker image is stored locally, ensure that Kubernetes uses the local image by setting `imagePullPolicy` to `Never`:
+
+```yaml
+spec:
+  containers:
+  - name: real-estate-prediction
+    image: real-estate-prediction:v2
+    imagePullPolicy: Never
+    ports:
+    - containerPort: 5002
+```
+
+### 3. Using a Docker Registry
+
+For a production environment, where your image is stored in a Docker registry, follow these steps:
+
+1. **Tag and Push the Image:**
+
+   ```bash
+   docker tag real-estate-prediction:v2 <your-registry-username>/real-estate-prediction:v2
+   docker push <your-registry-username>/real-estate-prediction:v2
+   ```
+
+2. **Update `deployment.yaml`:**
+
+   ```yaml
+   spec:
+     containers:
+     - name: real-estate-prediction
+       image: <your-registry-username>/real-estate-prediction:v2
+       ports:
+       - containerPort: 5002
+   ```
+
+3. **Apply the deployment:**
+
+   ```bash
+   kubectl apply -f deployment.yaml
+   ```

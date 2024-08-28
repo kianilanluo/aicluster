@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.linear_model import LinearRegression
-from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score, classification_report
 import werkzeug
 
 # Load the dataset
@@ -70,6 +70,11 @@ def main():
     print("root mean squared error (RMSE): ", np.sqrt(mean_squared_error(y_test, y_pred)))
     print("R-squared (R^2) score: ", r2_score(y_test, y_pred))
 
+    # Calculate F1 score
+    threshold = y_test.mean()  # Set a threshold for converting predictions to binary classes
+    y_pred_binary = (y_pred >= threshold).astype(int)
+    y_test_binary = (y_test >= threshold).astype(int)
+    print(classification_report(y_test_binary, y_pred_binary))
     # Plot the actual vs. predicted prices
     plt.figure(figsize=(10, 6))
     plt.scatter(y_test, y_pred)

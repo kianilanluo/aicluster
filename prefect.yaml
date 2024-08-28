@@ -1,0 +1,84 @@
+# Welcome to your prefect.yaml file! You can use this file for storing and managing
+# configuration for deploying your flows. We recommend committing this file to source
+# control along with your flow code.
+
+# Generic metadata about this project
+name: kian_dissertation
+prefect-version: 2.20.3
+
+# build section allows you to manage and build docker images
+build:
+
+# push section allows you to manage if and how this project is uploaded to remote locations
+push:
+
+# pull section allows you to provide instructions for cloning this project in remote locations
+pull:
+- prefect.deployments.steps.git_clone:
+    repository: https://github.com/kianilanluo/kian_dissertation.git
+    branch: main
+    access_token: '{{ prefect.blocks.secret.deployment-real-estate-pipeline-py-real-estate-price-prediction-pipeline-repo-token
+      }}'
+
+# the deployments section allows you to provide configuration for deploying flows
+deployments:
+- name: real_estate_pipeline.py
+  version:
+  tags: []
+  description:
+  entrypoint: real_estate_pipeline.py:ml_pipeline
+  parameters: {}
+  work_pool:
+    name: kianpool
+    work_queue_name:
+    job_variables: {}
+  schedules:
+  - interval: 3600.0
+    anchor_date: '2024-08-28T10:59:44.736375+00:00'
+    timezone: UTC
+    active: true
+- name: ml_pipeline-deployment.yaml
+  version:
+  tags: []
+  description:
+  entrypoint: real_estate_pipeline.py:ml_pipeline
+  parameters: {}
+  work_pool:
+    name: kianpool
+    work_queue_name:
+    job_variables: {}
+  schedules:
+  - interval: 3600.0
+    anchor_date: '2024-08-28T15:53:07.487939+00:00'
+    timezone: UTC
+    active: true
+- name: training_phase
+  version:
+  tags: []
+  description:
+  entrypoint: real_estate_pipeline.py:training_phase
+  parameters: {}
+  work_pool:
+    name: kianpool
+    work_queue_name:
+    job_variables: {}
+  schedules:
+  - interval: 3600.0
+    anchor_date: '2024-08-28T19:29:30.175022+00:00'
+    timezone: UTC
+    active: true
+- name: Model_Evaluation
+  version:
+  tags: []
+  description:
+  entrypoint: real_estate_pipeline.py:model_evaluation
+  parameters: {}
+  work_pool:
+    name: kianpool
+    work_queue_name:
+    job_variables: {}
+  schedules:
+  - interval: 3600.0
+    anchor_date: '2024-08-28T19:31:33.481545+00:00'
+    timezone: UTC
+    active: true

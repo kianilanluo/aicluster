@@ -14,8 +14,8 @@ spec:
     spec:
       containers:
       - name: real-estate-prediction
-        image: real-estate-prediction:v1
-        imagePullPolicy: Never
+        image: kianilanluo/real-estate-prediction:v2
+        # imagePullPolicy: Never
         ports:
         - containerPort: 5002
         resources:
