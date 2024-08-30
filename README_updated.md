@@ -87,14 +87,6 @@ kubectl set image deployment/real-estate-prediction real-estate-prediction=real-
 
 This will update the deployment with the new Docker image without affecting the service or any other resources.
 
-## Contributing
-
-Contributions are welcome! If you find any issues or have suggestions for improvements, please open an issue or submit a pull request.
-
-## License
-
-This project is not licensed.
-
 ## Kubernetes Deployment Configuration
 
 ### 1. Ingress Controller Setup
@@ -382,3 +374,10 @@ pipeline {
 - Monitor the console output to ensure that each stage is executed correctly.
 - The pipeline will automatically check out the code from your GitHub repository, build a Docker image, deploy it to Docker Desktop, push it to a local Docker registry, and finally deploy it to your Kubernetes cluster.
 
+## Contributing
+
+Contributions are welcome! If you find any issues or have suggestions for improvements, please open an issue or submit a pull request.
+
+## License
+
+This project is not licensed.
