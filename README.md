@@ -253,3 +253,132 @@ For a production environment, where your image is stored in a Docker registry, f
    ```bash
    kubectl apply -f deployment.yaml
    ```
+
+
+## Configure Jenkins
+
+To deploy this project using Jenkins, follow these steps:
+
+### 1. Install Jenkins
+If you don't already have Jenkins installed, you can install it using Docker:
+
+```bash
+docker run -d --name jenkins -p 8080:8080 -p 50000:50000 jenkins/jenkins:lts
+```
+
+After Jenkins is up and running, access it by navigating to `http://localhost:8080` in your web browser. Complete the setup process by following the on-screen instructions.
+
+### 2. Install Required Plugins
+Make sure the following plugins are installed in Jenkins:
+- Git Plugin
+- Docker Plugin
+- Kubernetes CLI Plugin
+- Credentials Binding Plugin
+
+You can install these plugins by navigating to `Manage Jenkins -> Manage Plugins -> Available`.
+
+### 3. Set Up Jenkins Credentials
+You will need to add the following credentials in Jenkins:
+
+1. **GitHub Credentials**:
+    - Go to `Manage Jenkins -> Manage Credentials`.
+    - Add a new "Username with password" credential with the ID `github` (or modify the pipeline script if you choose a different ID).
+
+2. **Kubeconfig File**:
+    - Add a new "Secret file" credential for the kubeconfig file, with the ID `kubeconfig`.
+
+### 4. Create a Jenkins Pipeline
+
+1. Go to `Jenkins -> New Item`.
+2. Select "Pipeline" and give your project a name.
+3. In the "Pipeline" section, choose "Pipeline script" and paste the following script:
+
+```groovy
+pipeline {
+    agent any
+
+    environment {
+        GITHUB_CREDENTIALS_ID = 'github'
+        REPO_URL = 'https://github.com/kianilanluo/kian_dissertation.git'
+        IMAGE_NAME = 'kian_dissertation_image'
+        DOCKER_PATH = '/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                script {
+                    git branch: 'main', credentialsId: "${env.GITHUB_CREDENTIALS_ID}", url: "${env.REPO_URL}"
+                }
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    withEnv(["PATH+DOCKER=${env.DOCKER_PATH}"]) {
+                        sh "docker build -t ${env.IMAGE_NAME} ."
+                    }
+                }
+            }
+        }
+
+        stage('Deploy to Docker Desktop') {
+            steps {
+                script {
+                    // Map container's port 80 to host's port 8081
+                    sh "docker run -d -p 8081:80 ${env.IMAGE_NAME}"
+                }
+            }
+        }
+
+        stage('Start Local Docker Registry') {
+            steps {
+                script {
+                    def registryRunning = sh(script: "docker ps | grep registry", returnStatus: true) == 0
+                    if (!registryRunning) {
+                        sh "docker run -d -p 5001:5000 --name registry registry:2"
+                    }
+                }
+            }
+        }
+
+        stage('Push Docker Image to Local Registry') {
+            steps {
+                script {
+                    sh "docker tag ${env.IMAGE_NAME} localhost:5001/${env.IMAGE_NAME}"
+                    sh "docker push localhost:5001/${env.IMAGE_NAME}"
+                }
+            }
+        }
+
+        stage('Deploy to Kubernetes') {
+            steps {
+                script {
+                    // Use the kubeconfig credentials file from Jenkins
+                    withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG')]) {
+                        sh """
+                            kubectl --kubeconfig=${KUBECONFIG} apply -f deployment.yaml
+                            kubectl --kubeconfig=${KUBECONFIG} apply -f service.yaml
+                        """
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            script {
+                sh 'docker system prune -f'
+            }
+        }
+    }
+}
+```
+
+### 5. Run the Jenkins Pipeline
+- Click on "Build Now" to run the pipeline. 
+- Monitor the console output to ensure that each stage is executed correctly.
+- The pipeline will automatically check out the code from your GitHub repository, build a Docker image, deploy it to Docker Desktop, push it to a local Docker registry, and finally deploy it to your Kubernetes cluster.
+
