@@ -291,9 +291,9 @@ pipeline {
 
     environment {
         GITHUB_CREDENTIALS_ID = 'github'
-        REPO_URL = 'https://github.com/kianilanluo/kian_dissertation.git'
-        IMAGE_NAME = 'kian_dissertation_image'
-        DOCKER_PATH = '/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin'
+        REPO_URL = 'Your repository'
+        IMAGE_NAME = 'the image you created'
+        DOCKER_PATH = '/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin' // In Mac os
     }
 
     stages {
