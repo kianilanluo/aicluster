@@ -1,0 +1,81 @@
+pipeline {
+    agent any
+
+    environment {
+        GITHUB_CREDENTIALS_ID = 'github'
+        REPO_URL = 'github address'
+        IMAGE_NAME = 'kian_dissertation_image'
+        DOCKER_PATH = '/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                script {
+                    git branch: 'main', credentialsId: "${env.GITHUB_CREDENTIALS_ID}", url: "${env.REPO_URL}"
+                }
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    withEnv(["PATH+DOCKER=${env.DOCKER_PATH}"]) {
+                        sh "docker build -t ${env.IMAGE_NAME} ."
+                    }
+                }
+            }
+        }
+
+        stage('Deploy to Docker Desktop') {
+            steps {
+                script {
+                    // Map container's port 80 to host's port 8081
+                    sh "docker run -d -p 8081:80 ${env.IMAGE_NAME}"
+                }
+            }
+        }
+
+        stage('Start Local Docker Registry') {
+            steps {
+                script {
+                    def registryRunning = sh(script: "docker ps | grep registry", returnStatus: true) == 0
+                    if (!registryRunning) {
+                        sh "docker run -d -p 5001:5000 --name registry registry:2"
+                    }
+                }
+            }
+        }
+
+        stage('Push Docker Image to Local Registry') {
+            steps {
+                script {
+                    sh "docker tag ${env.IMAGE_NAME} localhost:5001/${env.IMAGE_NAME}"
+                    sh "docker push localhost:5001/${env.IMAGE_NAME}"
+                }
+            }
+        }
+
+        stage('Deploy to Kubernetes') {
+            steps {
+                script {
+                    // Use the kubeconfig credentials file from Jenkins
+                    withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG')]) {
+                        sh """
+                            kubectl --kubeconfig=${KUBECONFIG} apply -f deployment.yaml
+                            kubectl --kubeconfig=${KUBECONFIG} apply -f service.yaml
+                        """
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            script {
+                sh 'docker system prune -f'
+            }
+        }
+    }
+}
