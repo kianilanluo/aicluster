@@ -1,80 +1,88 @@
-from flask import Flask, request, jsonify
+import os
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
+import joblib
 from sklearn.linear_model import LinearRegression
-from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score, classification_report
-import werkzeug
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+import matplotlib.pyplot as plt
+from flask import Flask, request, jsonify
 
-# Load the dataset
-usa_housing = pd.read_csv('USA_Housing.xls')
+# Directory for storing the CSV files
+DATA_DIR = 'content/'
+MODEL_PATH = 'linear_regression_model.pkl'
+SCALER_PATH = 'scaler.pkl'
+PROCESSED_FILES_PATH = 'processed_files.txt'
 
-# Prepare the data
-X = usa_housing[['Avg. Area Income', 'Avg. Area House Age', 'Avg. Area Number of Rooms', 'Avg. Area Number of Bedrooms', 'Area Population']]
-y = usa_housing['Price']
+def load_data_from_directory(directory, processed_files):
+    """Load all new CSV files from a specified directory that have not been processed."""
+    all_files = [f for f in os.listdir(directory) if f.endswith('.csv')]
+    new_files = [f for f in all_files if f not in processed_files]
 
-# Train the model
-model = LinearRegression()
-model.fit(X, y)
+    if not new_files:
+        return None, processed_files
 
-app = Flask(__name__)
+    df_list = [pd.read_csv(os.path.join(directory, file)) for file in new_files]
+    combined_df = pd.concat(df_list, ignore_index=True)
 
-@app.route('/predict', methods=['POST', 'GET'])
-def predict():
-    if request.method == 'POST':
-        data = request.get_json()
-        avg_area_income = data['avg_area_income']
-        avg_area_house_age = data['avg_area_house_age']
-        avg_area_num_rooms = data['avg_area_num_rooms']
-        avg_area_num_bedrooms = data['avg_area_num_bedrooms']
-        area_population = data['area_population']
+    processed_files.update(new_files)
 
-        input_data = np.array([[avg_area_income, avg_area_house_age, avg_area_num_rooms, avg_area_num_bedrooms, area_population]])
-        predicted_price = model.predict(input_data)[0]
+    return combined_df, processed_files
 
-        return jsonify({'predicted_price': predicted_price})
+def save_processed_files(processed_files):
+    """Save the processed files list to a text file."""
+    with open(PROCESSED_FILES_PATH, 'w') as f:
+        for file in processed_files:
+            f.write(f"{file}\n")
+
+def load_processed_files():
+    """Load the processed files list from a text file."""
+    if os.path.exists(PROCESSED_FILES_PATH):
+        with open(PROCESSED_FILES_PATH, 'r') as f:
+            processed_files = set(f.read().splitlines())
     else:
-        return jsonify({'message': 'Please send a POST request with the required housing metrics to get the predicted price.'})
+        processed_files = set()
 
+    return processed_files
 
-def main():
-    if werkzeug.serving.is_running_from_reloader():
-        return
+def train_model_with_new_data(new_data, model=None, scaler=None):
+    """Train or update the model with new data."""
+    X = new_data[['Avg. Area Income', 'Avg. Area House Age', 'Avg. Area Number of Rooms', 'Avg. Area Number of Bedrooms', 'Area Population']]
+    y = new_data['Price']
 
-    print("Length of Dataset: ", len(usa_housing))
-    print("Shape of Dataset:", usa_housing.shape)
+    if scaler is None:
+        scaler = StandardScaler()
+        X_scaled = scaler.fit_transform(X)
+    else:
+        X_scaled = scaler.transform(X)
 
-    usa_housing.head(5)
+    X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.4, random_state=101)
 
-    from sklearn.model_selection import train_test_split
+    if model is None:
+        model = LinearRegression()
+        model.fit(X_train, y_train)
+    else:
+        model.fit(X_train, y_train)
 
-    # Split the dataset into training and testing sets
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4, random_state=101)
+    # Evaluate the model and show performance metrics
+    evaluate_model(model, X_test, y_test)
 
-    X_train.shape, y_train.shape, X_test.shape, y_test.shape
+    return model, scaler
 
-    # Train the model
-    lm = LinearRegression()
-    lm.fit(X_train, y_train)
-
-    # Make prediction on the test set
-    y_pred = lm.predict(X_test)
+def evaluate_model(model, X_test, y_test):
+    """Evaluate the model and print performance metrics."""
+    y_pred = model.predict(X_test)
     print("y_pred.shape: ", y_pred.shape)
 
-    for d in zip(y_test[:5], y_pred[:5]):
-        print(f"Actual: {d[0]:.2f}, Predicted: {d[1]:.2f}")
+    for actual, predicted in zip(y_test[:5], y_pred[:5]):
+        print(f"Actual: {actual:.2f}, Predicted: {predicted:.2f}")
 
-    # Evaluate the model
-    print("mean absolute error (MAE): ", mean_absolute_error(y_test, y_pred))
-    print("mean squared error (MSE): ", mean_squared_error(y_test, y_pred))
-    print("root mean squared error (RMSE): ", np.sqrt(mean_squared_error(y_test, y_pred)))
-    print("R-squared (R^2) score: ", r2_score(y_test, y_pred))
+    print("Mean Absolute Error (MAE): ", mean_absolute_error(y_test, y_pred))
+    print("Mean Squared Error (MSE): ", mean_squared_error(y_test, y_pred))
+    print("Root Mean Squared Error (RMSE): ", np.sqrt(mean_squared_error(y_test, y_pred)))
+    print("R-squared (R²) score: ", r2_score(y_test, y_pred))
 
-    # Calculate F1 score
-    threshold = y_test.mean()  # Set a threshold for converting predictions to binary classes
-    y_pred_binary = (y_pred >= threshold).astype(int)
-    y_test_binary = (y_test >= threshold).astype(int)
-    print(classification_report(y_test_binary, y_pred_binary))
     # Plot the actual vs. predicted prices
     plt.figure(figsize=(10, 6))
     plt.scatter(y_test, y_pred)
@@ -94,6 +102,74 @@ def main():
     plt.title("Residuals vs. Predicted Prices")
     plt.show()
 
+def load_model_and_scaler():
+    """Load the model and scaler if they exist."""
+    if os.path.exists(MODEL_PATH) and os.path.exists(SCALER_PATH):
+        model = joblib.load(MODEL_PATH)
+        scaler = joblib.load(SCALER_PATH)
+    else:
+        model = None
+        scaler = None
+    return model, scaler
+
+def save_model_and_scaler(model, scaler):
+    """Save the model and scaler."""
+    joblib.dump(model, MODEL_PATH)
+    joblib.dump(scaler, SCALER_PATH)
+
+# Flask app
+app = Flask(__name__)
+
+@app.route('/predict', methods=['POST', 'GET'])
+def predict():
+    if request.method == 'POST':
+        try:
+            data = request.get_json()
+            avg_area_income = data['avg_area_income']
+            avg_area_house_age = data['avg_area_house_age']
+            avg_area_num_rooms = data['avg_area_num_rooms']
+            avg_area_num_bedrooms = data['avg_area_num_bedrooms']
+            area_population = data['area_population']
+
+            input_data = np.array([[avg_area_income, avg_area_house_age, avg_area_num_rooms, avg_area_num_bedrooms, area_population]])
+            input_data_scaled = scaler.transform(input_data)
+
+            predicted_price = model.predict(input_data_scaled)[0]
+
+            return jsonify({'predicted_price': predicted_price})
+        except Exception as e:
+            return jsonify({'error': str(e)})
+    else:
+        return jsonify({'message': 'Please send a POST request with the required housing metrics to get the predicted price.'})
+
+def main():
+    global model, scaler
+
+    # Load processed files list
+    processed_files = load_processed_files()
+
+    # Load new data
+    new_data, processed_files = load_data_from_directory(DATA_DIR, processed_files)
+
+    if new_data is not None:
+        print(f"Training with new data from {len(processed_files)} files...")
+        # Train or update model with new data
+        model, scaler = train_model_with_new_data(new_data, model, scaler)
+
+        # Save the updated model and scaler
+        save_model_and_scaler(model, scaler)
+
+        # Save the processed files list
+        save_processed_files(processed_files)
+    else:
+        print("No new data to process.")
+
 if __name__ == '__main__':
+    # Load the existing model and scaler
+    model, scaler = load_model_and_scaler()
+
+    # Train and evaluate the model
     main()
+
+    # Start the Flask app
     app.run(host='0.0.0.0', port=5002, debug=True)
