@@ -1,5 +1,5 @@
 
-# Real Estate Price Prediction
+# Real Estate Price Prediction over kubernetes cluster
 
 This project is a Flask application that provides a machine learning model for predicting real estate prices based on various features such as location, property type, number of rooms, and more.
 
